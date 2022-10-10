@@ -20,14 +20,17 @@ from astropy.wcs import WCS
 
 #stars_calibrated_H_chip2.txt 
 #Gaia edr3 -> dr3
-tab = Table.read('./Field9/XMatch_01.xml', format='votable')
-tab[0:5]
+GNS2 =  '/Users/amartinez/Desktop/PhD/HAWK/GNS_2/quality_check/GNS_lists/'
+field = 6
+tab = Table.read(GNS2 + 'Field%s/XMatch_01.xml'%(field), format='votable')
+col_nom = tab.colnames
+print(tab.colnames)
 
-
+print(tab['pmra_error'][0:5])
 # In[3]:
 
 
-header = fits.getheader('./Field9/9_chip1_holo_cal.fits.gz')
+header = fits.getheader(GNS2 + '/Field%s/%s_chip1_holo_cal.fits.gz'%(field, field))
 w = WCS(header)
 header
 
@@ -35,20 +38,26 @@ header
 # In[4]:
 
 
-selection = np.argwhere((tab['PM_tab1'] > 0) & (tab['e_pmRA_tab1'] < 0.3) & (tab['e_pmDE_tab1'] < 0.3))
+# selection = np.argwhere((tab['PM_tab1'] > 0) & (tab['e_pmRA_tab1'] < 0.3) & (tab['e_pmDE_tab1'] < 0.3))
+selection = np.argwhere((tab['pm'] > 0) & (tab['pmra_error'] < 0.3) & (tab['pmdec_error'] < 0.3))
+
 tab = tab[selection]
 print(len(tab))
-tab[0:5]
 
 
 # In[5]:
 
 
-gnstime = Time(['2021-09-23T00:00:00'], format='isot')
+# gnstime = Time(['2021-09-23T00:00:00'], format='isot')
+if field == 6:
+    gnstime = Time(['2022-05-27T00:00:00'], format='isot')
+if field == 9:
+    gnstime = Time(['2021-09-23T00:00:00'], format='isot')
+    
 gnsequinox = Time(['2000-01-01T12:00:00'], format='isot')
 
-GNSCoord = SkyCoord(ra=tab['C1_tab2'],
-                   dec=tab['C2_tab2'], 
+GNSCoord = SkyCoord(ra=tab['col1'],
+                   dec=tab['col2'], 
                    frame='icrs', unit='deg',
                     equinox=gnsequinox,
                    obstime=gnstime)
@@ -65,10 +74,10 @@ GNSCoord = SkyCoord(ra=tab['C1_tab2'],
 
 gaiaequinox = Time(['2000-01-01T12:00:00'], format='isot')
 #gaiaequinox = Time(['2016-01-01T12:00:00'], format='isot')
-GaiaCoord = SkyCoord(ra=tab['RA_ICRS_tab1'],
-                   dec=tab['DE_ICRS_tab1'],
-                    pm_ra_cosdec=tab['pmRA_tab1'],
-                     pm_dec=tab['pmDE_tab1'],
+GaiaCoord = SkyCoord(ra=tab['ra'],
+                   dec=tab['dec'],
+                    pm_ra_cosdec=tab['pmra'],
+                     pm_dec=tab['pmdec'],
                    frame='icrs',
                      equinox = gaiaequinox,
                     obstime=Time(['2016-01-01T00:00:00'], format='isot'))
@@ -78,8 +87,10 @@ GaiaCoord = SkyCoord(ra=tab['RA_ICRS_tab1'],
 
 # In[7]:
 
-
-t = Time(['2021-09-23T00:00:00','2016-01-01T00:00:00'],scale='utc')
+if field == 6:
+    t = Time(['2022-05-27T00:00:00','2016-01-01T00:00:00'],scale='utc')
+if field == 9:
+    t = Time(['2021-09-23T00:00:00','2016-01-01T00:00:00'],scale='utc')
 delta_t = t[0] - t[1]
 #delta_t
 #<TimeDelta object: scale='tai' format='jd' value=2092.000011574074>
@@ -141,7 +152,7 @@ GaiaGNSCoord=GaiaCoord.apply_space_motion(dt=delta_t)
 #        [-3.94641387e-06],
 #        [ 4.47739518e-06],
 #        [-9.81071412e-06]]))
-GaiaGNSCoord.ra.deg[0:5],GaiaCoord.ra.deg[0:5],GaiaGNSCoord.ra.deg[0:5]-GaiaCoord.ra.deg[0:5]
+print(GaiaGNSCoord.ra.deg[0:5],GaiaCoord.ra.deg[0:5],GaiaGNSCoord.ra.deg[0:5]-GaiaCoord.ra.deg[0:5])
 
 
 # FROM COORDINATE TO PIXELS
@@ -155,7 +166,7 @@ xgaia, ygaia = w.world_to_pixel(GaiaGNSCoord)
 n_sources = len(xgaia)
 xgaia = np.ndarray.flatten(xgaia)
 ygaia = np.ndarray.flatten(ygaia)
-xgaia[0:5], ygaia[0:5]
+print(xgaia[0:5], ygaia[0:5])
 #array([5018.10455091, 4845.71579371, 5015.10482536, 4437.73514851,
 #        4867.47478829]),
 # array([ 864.00894398, 1177.60745028, 1626.23979519,  803.94862539,
@@ -170,15 +181,10 @@ xGNS, yGNS = w.world_to_pixel(GNSCoord)
 #print(xGNS)
 xGNS = np.ndarray.flatten(xGNS)
 yGNS = np.ndarray.flatten(yGNS)
-xoriGNS = np.ndarray.flatten(np.transpose(np.array(tab['C3_tab2'])))
-yoriGNS = np.ndarray.flatten(np.transpose(np.array(tab['C4_tab2'])))
-#print(xGNS, yGNS)
-#5017.11929576 4844.87239485 5013.26350952 4436.98216084 4865.67789
-#865.17667219 1178.9427531  1626.40600247  804.73448794 1557.35084338
-#print(xGNS, yGNS)
-#5016.71361306 4844.08261433 5014.39584863 4437.12369421 4865.90005819
-#864.63100099 1178.15349565 1626.39656001  804.62965687 1557.52742238
-xGNS[0:5],xoriGNS[0:5], (xGNS-xoriGNS)[0:5]
+xoriGNS = np.ndarray.flatten(np.transpose(np.array(tab['col3'])))
+yoriGNS = np.ndarray.flatten(np.transpose(np.array(tab['col4'])))
+#
+print(xGNS[0:5],xoriGNS[0:5], (xGNS-xoriGNS)[0:5])
 
 
 # In[15]:
@@ -294,9 +300,10 @@ print(0.4 * 0.053)
 
 plt.rc('font', size = 16)
 fig, axes = plt.subplots(figsize=(10,10))
+axes.set_title('Field%s'%(field))
 axes.hist(dy,bins=12,label='Declination')
 axes.hist(dx,bins=12,label='Right Ascension',alpha=0.5)
-axes.set_xlim(-0.12,0.12)
+# axes.set_xlim(-0.12,0.12)
 axes.set_xlabel('Offset in mas')
 axes.set_ylabel('Number of stars')
 axes.legend()
@@ -305,7 +312,7 @@ axes.legend()
 # In[55]:
 
 
-fig.savefig('GNS_Gaia_2.pdf',dpi='figure', format='pdf')
+# fig.savefig('GNS_Gaia_2.pdf',dpi='figure', format='pdf')
 
 
 # In[14]:
@@ -314,9 +321,10 @@ fig.savefig('GNS_Gaia_2.pdf',dpi='figure', format='pdf')
 #questo é il corretto
 plt.rc('font', size = 16)
 fig, axes = plt.subplots(figsize=(10,10))
+axes.set_title('Field%s'%(field))
 axes.hist(dy1,bins=12,label='Declination')
 axes.hist(dx1,bins=12,label='Right Ascension',alpha=0.5)
-axes.set_xlim(-0.12,0.12)
+# axes.set_xlim(-0.12,0.12)
 axes.set_xlabel('Offset in mas')
 axes.set_ylabel('Number of stars')
 axes.legend()
